@@ -1,0 +1,23 @@
+# R2R Installation
+
+Welcome to the R2R self-hosting installation guide. For those interested in a managed cloud solution, [refer to the quickstart here](/documentation/quickstart).
+
+R2R offers powerful features for your RAG applications, including:
+
+* **Flexibility**: Run with cloud-based LLMs or entirely on your local machine
+* **State-of-the-Art Tech**: Advanced RAG techniques like [hybrid search](/documentation/search-and-rag), [graphs](/cookbooks/graphs), [advanced RAG](/documentation/advanced-rag), and [agentic RAG](/documentation/retrieval/agentic-rag).
+* **Auth & Orchestration**: Production must-haves like [auth](/documentation/user-auth) and [orchestration](/cookbooks/orchestration).
+
+## Choose Your System
+
+<CardGroup cols={2}>
+  <Card title="R2R Light" icon="feather" href="/self-hosting/installation/light">
+    A lightweight version of R2R, **perfect for quick prototyping and simpler applications**. Some advanced features, like orchestration may not be available.
+  </Card>
+
+  <Card title="R2R" icon="server" href="/self-hosting/installation/full">
+    The full-featured R2R system, ideal **for advanced use cases and production deployments**. Includes all components and capabilities, such as **Hatchet** for orchestration and **Unstructured** for parsing.
+  </Card>
+</CardGroup>
+
+Choose the system that best aligns with your requirements and proceed with the installation guide.

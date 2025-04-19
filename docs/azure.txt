@@ -1,0 +1,235 @@
+# Azure
+
+> Learn how to deploy R2R into Azure
+
+# Deploying R2R on Azure
+
+Azure provides a robust and scalable platform for deploying R2R (Reason to Retrieve). This guide will walk you through the process of setting up R2R on an Azure Virtual Machine, making it accessible both locally and publicly.
+
+## Overview
+
+Deploying R2R on Azure involves the following main steps:
+
+1. Creating an Azure Virtual Machine
+2. Installing necessary dependencies
+3. Setting up R2R
+4. Configuring port forwarding for local access
+5. Exposing ports for public access (optional)
+
+This guide assumes you have an Azure account and the necessary permissions to create and manage Virtual Machines.
+
+## Creating an Azure Virtual Machine
+
+1. Log in to the [Azure Portal](https://portal.azure.com/).
+2. Click on "Create a resource" and search for "Virtual Machine".
+3. Choose `Ubuntu Server 22.04 LTS - x64 Gen2` as the operating system.
+4. Select a VM size with at least 16GB of RAM, 4-8 vCPU cores, and 500GB of disk for a small-mid sized organization (\< 5000 users). The `D4s_v3` series is a good starting point.
+5. Configure networking settings to allow inbound traffic on ports `22` (SSH), and optionally `7272` (R2R API) and `7273` (R2R Dashboard).
+6. Review and create the VM.
+
+## Exposing Ports for Public Access (Optional)
+
+To make R2R publicly accessible:
+
+1. Log in to the Azure Portal.
+
+2. Navigate to your VM > Networking > Network Security Group.
+
+3. Add new inbound security rules:
+   * Destination port ranges: 7272
+     * Protocol: TCP
+     * Action: Allow
+     * Priority: 1000 (or lower than conflicting rules)
+     * Name: Allow\_7272
+   * Destination port ranges: 7273
+     * Protocol: TCP
+     * Action: Allow
+     * Priority: 1001
+     * Name: Allow\_7273
+
+4. Ensure R2R is configured to listen on all interfaces (0.0.0.0).
+
+After starting your R2R application, users can access:
+
+* The API at http\://YOUR\_VM\_ADDRESS:7272
+* The dashboard at http\://YOUR\_VM\_ADDRESS:7273
+
+<Frame caption="Opening ports 7272 and 7273 in our Azure cloud deployment">
+  <img src="file:92db43fa-9c7e-4d10-b88d-397e851cecd9" />
+</Frame>
+
+## Installing Dependencies
+
+SSH into your newly created VM with a command like `ssh -i my_pem.pem azureuser@YOUR_VM_ADDRESS`:
+
+<Frame caption="System info at first connection to the remote instance">
+  <img src="file:1526c796-3812-4e41-b21a-584ac514db54" />
+</Frame>
+
+Now, run the following commands to install the necessary R2R dependencies:
+
+```zsh
+# Update package list
+sudo apt update
+
+# Install Git
+sudo apt install git -y
+
+# Install Docker
+sudo apt-get update
+sudo apt-get install ca-certificates curl -y
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+# Add your user to the Docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify Docker installation
+docker run hello-world
+```
+
+<Frame caption="Successful Docker hello-world output">
+  <img src="file:949cc69e-26ec-4067-9753-d3ec381aa274" />
+</Frame>
+
+## Setting up R2R
+
+1. Clone the R2R repository:
+
+```zsh
+git clone https://github.com/SciPhi-AI/R2R.git
+cd R2R/docker
+```
+
+2. Set up environment variables:
+
+```zsh
+cd env
+# Edit r2r-full.env with your preferred text editor
+nano r2r-full.env
+```
+
+Add the necessary environment variables:
+
+```
+# Choose configuration
+R2R_CONFIG_NAME=full
+
+# Add your API key(s)
+OPENAI_API_KEY=sk-...
+
+# Optional - Add agent tool API keys if needed
+# SERPER_API_KEY=your_serper_api_key_here
+# FIRECRAWL_API_KEY=your_firecrawl_api_key_here
+```
+
+3. Start the R2R services:
+
+```zsh
+cd ..
+docker compose -f compose.full.yaml --profile postgres up -d
+```
+
+<Frame caption="Printout for a successful deployment">
+  <img src="file:2bcaee13-32ac-4a46-b8aa-525f18a4633a" />
+</Frame>
+
+4. Verify the health of the system:
+
+```zsh
+# Wait for services to start
+sleep 30
+
+# Check health
+curl http://localhost:7272/v3/health
+```
+
+Should return something like:
+
+```json
+{"results":{"response":"ok"}}
+```
+
+5. Test ingesting and searching a sample document from a remote environment:
+
+```zsh
+# From your local machine
+curl -X POST "http://YOUR_VM_ADDRESS:7272/v3/documents/create-sample"
+sleep 10
+curl -X POST "http://YOUR_VM_ADDRESS:7272/v3/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Who was aristotle?"}'
+```
+
+Replace `YOUR_VM_ADDRESS` with your Azure VM's public IP address.
+
+## Configuring Port Forwarding for Local Access
+
+To access R2R from your local machine, use SSH port forwarding:
+
+```zsh
+ssh -i my_pem.pem -L 7272:localhost:7272 -L 7273:localhost:7273 azureuser@YOUR_VM_ADDRESS
+```
+
+This will allow you to access:
+
+* The API at [http://localhost:7272](http://localhost:7272)
+* The dashboard at [http://localhost:7273](http://localhost:7273)
+
+Note that when using the R2R dashboard, you may still need to use the remote VM address as requests are made from the client-side.
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Check Docker container status:
+
+```
+docker ps
+docker logs <container_id>
+```
+
+2. Verify environment variables are correctly set in r2r-full.env.
+
+3. Ensure ports are correctly exposed in your network security group.
+
+4. Check disk space and system resources:
+
+```
+df -h
+free -m
+```
+
+5. If services fail to start, try restarting Docker:
+
+```
+sudo systemctl restart docker
+```
+
+## Security Considerations
+
+* Use HTTPS (port 443) with a valid SSL certificate for production.
+* Restrict source IP addresses in the security rule if possible.
+* Regularly update and patch your system and applications.
+* Use Azure Security Center for monitoring security posture.
+* Consider using Azure Private Link for secure private connections.
+* Enable Just-in-Time VM access to restrict inbound traffic.
+* Deploy Azure Firewall for enhanced network security.
+* Configure Azure Sentinel for security information and event management.
+* Remove or disable the security rules when not needed for testing.
+
+## Conclusion
+
+You have now successfully deployed R2R on Azure. The application should be accessible locally through SSH tunneling and optionally publicly through direct access to the Azure VM.
+
+For more information on configuring and using R2R, refer to the [configuration documentation](/self-hosting/configuration/overview) or join our [Discord community](https://discord.gg/p6KqD2kjtB) for assistance.

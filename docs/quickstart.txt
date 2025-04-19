@@ -1,0 +1,382 @@
+# Quickstart
+
+Getting started with R2R is easy.
+
+<Steps>
+  ### Deployment Checks
+
+  Start by checking that you have correctly deployed your R2R instance locally:
+
+  ```zsh
+  curl http://localhost:7272/v3/health
+  # {"results":{"response":"ok"}}
+  ```
+
+  ### Install the SDK
+
+  R2R offers a Python and JavaScript SDK to interact with.
+
+  <Tabs>
+    <Tab title="Python">
+      ```zsh
+      pip install r2r
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```zsh
+      npm i r2r-js
+      ```
+    </Tab>
+  </Tabs>
+
+  ### Ingesting files
+
+  When you ingest files into R2R, the server accepts the task, processes and chunks the file, and generates a summary of the document.
+
+  <Tabs>
+    <Tab title="Python">
+      ```python
+      client.documents.create_sample(hi_res=True)
+      # to ingest your own document, client.documents.create(file_path="/path/to/file")
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```javascript
+      clients.documents.createSample({ ingestionMode: "hi-res" })
+      // to ingest your own document, client.documents.create({filePath: </path/to/file>})
+      ```
+    </Tab>
+  </Tabs>
+
+  Example output:
+
+  ```plaintext
+  IngestionResponse(message='Document created and ingested successfully.', task_id=None, document_id=UUID('e43864f5-a36f-548e-aacd-6f8d48b30c7f'))
+  ```
+
+  ### Getting file status
+
+  After file ingestion is complete, you can check the status of your documents by listing them.
+
+  <Tabs>
+    <Tab title="Python">
+      ```python
+      client.documents.list()
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```javascript
+      clients.documents.list()
+      ```
+    </Tab>
+
+    <Tab title="Curl">
+      ```zsh
+      curl -X GET https://api.sciphi.ai/v3/documents \
+        -H "Content-Type: application/json"
+      ```
+    </Tab>
+  </Tabs>
+
+  Example output:
+
+  ```plaintext
+  [
+    DocumentResponse(
+      id=UUID('e43864f5-a36f-548e-aacd-6f8d48b30c7f'), 
+      collection_ids=[UUID('122fdf6a-e116-546b-a8f6-e4cb2e2c0a09')], 
+      owner_id=UUID('2acb499e-8428-543b-bd85-0d9098718220'), 
+      document_type=<DocumentType.PDF: 'pdf'>, 
+      metadata={'title': 'DeepSeek_R1.pdf', 'version': 'v0'}, 
+      version='v0', 
+      size_in_bytes=1768572, 
+      ingestion_status=<IngestionStatus.SUCCESS: 'success'>, 
+      extraction_status=<GraphExtractionStatus.PENDING: 'pending'>, 
+      created_at=datetime.datetime(2025, 2, 8, 3, 31, 39, 126759, tzinfo=TzInfo(UTC)), 
+      updated_at=datetime.datetime(2025, 2, 8, 3, 31, 39, 160114, tzinfo=TzInfo(UTC)), 
+      ingestion_attempt_number=None, 
+      summary="The document contains a comprehensive overview of DeepSeek-R1, a series of reasoning models developed by DeepSeek-AI, which includes DeepSeek-R1-Zero and DeepSeek-R1. DeepSeek-R1-Zero utilizes large-scale reinforcement learning (RL) without supervised fine-tuning, showcasing impressive reasoning capabilities but facing challenges like readability and language mixing. To enhance performance, DeepSeek-R1 incorporates multi-stage training and cold-start data, achieving results comparable to OpenAI's models on various reasoning tasks. The document details the models' training processes, evaluation results across multiple benchmarks, and the introduction of distilled models that maintain reasoning capabilities while being smaller and more efficient. It also discusses the limitations of current models, such as language mixing and sensitivity to prompts, and outlines future research directions to improve general capabilities and efficiency in software engineering tasks. The findings emphasize the potential of RL in developing reasoning abilities in large language models and the effectiveness of distillation techniques for smaller models.", summary_embedding=None, total_tokens=29673)] total_entries=1
+    ), ...
+  ]
+  ```
+
+  ### Executing a search
+
+  Perform a search query:
+
+  <Tabs>
+    <Tab title="Python">
+      ```python
+      client.retrieval.search(
+        query="What is DeepSeek R1?",
+      )
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```javascript
+      client.retrieval.search({
+        query: "What is DeepSeek R1?",
+      })
+      ```
+    </Tab>
+
+    <Tab title="Curl">
+      ```zsh
+      curl -X POST https://api.sciphi.ai/v3/retrieval/search \
+        -H "Content-Type: application/json" \
+        -d '{
+          "query": "What is DeepSeek R1?"
+        }'
+      ```
+    </Tab>
+  </Tabs>
+
+  The search query will use basic similarity search to find the most relevant documents. You can use advanced search methods like [hybrid search](/documentation/hybrid-search) or [graph search](/documentation/graphs) depending on your use case.
+
+  Example output:
+
+  ```plaintext
+  AggregateSearchResult(
+    chunk_search_results=[
+      ChunkSearchResult(
+        score=0.643, 
+        text="Document Title: DeepSeek_R1.pdf
+        Text: could achieve an accuracy of over 70%.
+        DeepSeek-R1 also delivers impressive results on IF-Eval, a benchmark designed to assess a
+        models ability to follow format instructions. These improvements can be linked to the inclusion
+        of instruction-following data during the final stages of supervised fine-tuning (SFT) and RL
+        training. Furthermore, remarkable performance is observed on AlpacaEval2.0 and ArenaHard,
+        indicating DeepSeek-R1s strengths in writing tasks and open-domain question answering. Its
+        significant outperformance of DeepSeek-V3 underscores the generalization benefits of large-scale
+        RL, which not only boosts reasoning capabilities but also improves performance across diverse
+        domains. Moreover, the summary lengths generated by DeepSeek-R1 are concise, with an
+        average of 689 tokens on ArenaHard and 2,218 characters on AlpacaEval 2.0. This indicates that
+        DeepSeek-R1 avoids introducing length bias during GPT-based evaluations, further solidifying
+        its robustness across multiple tasks."
+      ), ...
+    ],
+    graph_search_results=[],
+    web_search_results=[],
+    context_document_results=[]
+  )
+  ```
+
+  ### RAG
+
+  Generate a RAG response:
+
+  <Tabs>
+    <Tab title="Python">
+      ```python
+      client.retrieval.rag(
+        query="What is DeepSeek R1?",
+      )
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```javascript
+      client.retrieval.rag({
+        query: "What is DeepSeek R1?",
+      })
+      ```
+    </Tab>
+
+    <Tab title="Curl">
+      ```zsh
+      curl -X POST https://api.sciphi.ai/v3/retrieval/rag \
+        -H "Content-Type: application/json" \
+        -d '{
+          "query": "What is DeepSeek R1?"
+        }'
+      ```
+    </Tab>
+  </Tabs>
+
+  Example output:
+
+  ```plaintext
+  RAGResponse(
+    generated_answer='DeepSeek-R1 is a model that demonstrates impressive performance across various tasks, leveraging reinforcement learning (RL) and supervised fine-tuning (SFT) to enhance its capabilities. It excels in writing tasks, open-domain question answering, and benchmarks like IF-Eval, AlpacaEval2.0, and ArenaHard [1], [2]. DeepSeek-R1 outperforms its predecessor, DeepSeek-V3, in several areas, showcasing its strengths in reasoning and generalization across diverse domains [1]. It also achieves competitive results on factual benchmarks like SimpleQA, although it performs worse on the Chinese SimpleQA benchmark due to safety RL constraints [2]. Additionally, DeepSeek-R1 is involved in distillation processes to transfer its reasoning capabilities to smaller models, which perform exceptionally well on benchmarks [4], [6]. The model is optimized for English and Chinese, with plans to address language mixing issues in future updates [8].', 
+    search_results=AggregateSearchResult(
+      chunk_search_results=[ChunkSearchResult(score=0.643, text=Document Title: DeepSeek_R1.pdf ...)]
+    ),
+    citations=[Citation(index=1, rawIndex=1, startIndex=305, endIndex=308, snippetStartIndex=288, snippetEndIndex=315, sourceType='chunk', id='e760bb76-1c6e-52eb-910d-0ce5b567011b', document_id='e43864f5-a36f-548e-aacd-6f8d48b30c7f', owner_id='2acb499e-8428-543b-bd85-0d9098718220', collection_ids=['122fdf6a-e116-546b-a8f6-e4cb2e2c0a09'], score=0.6433466439465674, text='Document Title: DeepSeek_R1.pdf\n\nText: could achieve an accuracy of over 70%.\nDeepSeek-R1 also delivers impressive results on IF-Eval, a benchmark designed to assess a\nmodels ability to follow format instructions. These improvements can be linked to the inclusion\nof instruction-following...]
+    metadata={'id': 'chatcmpl-B0BaZ0vwIa58deI0k8NIuH6pBhngw', 'choices': [{'finish_reason': 'stop', 'index': 0, 'logprobs': None, 'message': {'refusal': None, 'role': 'assistant', 'audio': None, 'function_call': None, 'tool_calls': None}}], 'created': 1739384247, 'model': 'gpt-4o-2024-08-06', 'object': 'chat.completion', 'service_tier': 'default', 'system_fingerprint': 'fp_4691090a87', ...}
+  ```
+
+  ### Streaming RAG
+
+  Generate a streaming RAG response:
+
+  <Tabs>
+    <Tab title="Python">
+      ```python
+      from r2r import (
+          CitationEvent,
+          FinalAnswerEvent,
+          MessageEvent,
+          SearchResultsEvent,
+          R2RClient,
+      )
+
+      client = R2RClient("http://localhost:7272")
+
+      result_stream = client.retrieval.rag(
+          query="What is DeepSeek R1?",
+          search_settings={"limit": 25},
+          rag_generation_config={"stream": True},
+      )
+
+      # can also do a switch on `type` field
+      for event in result_stream:
+          if isinstance(event, SearchResultsEvent):
+              print("Search results:", event.data)
+          elif isinstance(event, MessageEvent):
+              print("Partial message:", event.data.delta)
+          elif isinstance(event, CitationEvent):
+              print("New citation detected:", event.data.raw_index)
+          elif isinstance(event, FinalAnswerEvent):
+              print("Final answer:", event.data.generated_answer)
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```javascript
+      ...
+      ```
+    </Tab>
+
+    <Tab title="Curl">
+      ```bash
+      curl -X POST https://api.sciphi.ai/v3/retrieval/rag \
+        -H "Content-Type: application/json" \
+        -d '{
+          "query": "What is DeepSeek R1?"
+        }'
+      ```
+    </Tab>
+  </Tabs>
+
+  Example output:
+
+  ```plaintext
+  Search results: id='run_1' object='rag.search_results' data={'chunk_search_results': [{'id': '1e40ee7e-2eef-524f-b5c6-1a1910e73ccc', 'document_id': '652075c0-3a43-519f-9625-f581e7605bc5', 'owner_id': '2acb499e-8428-543b-bd85-0d9098718220', 'collection_ids': ['122fdf6a-e116-546b-a8f6-e4cb2e2c0a09'], 'score': 0.7945216641038179, 'text': 'data, achieving strong performance across various tasks. DeepSeek-R1 is more powerful,\nleveraging cold-start data alongside iterative RL fine-tuning. Ultimately ... 
+  ...
+  Partial message: {'content': [MessageDelta(type='text', text={'value': 'Deep', 'annotations': []})]}
+  Partial message: {'content': [MessageDelta(type='text', text={'value': 'Seek', 'annotations': []})]}
+  Partial message: {'content': [MessageDelta(type='text', text={'value': '-R', 'annotations': []})]}
+  ...
+  Final answer: DeepSeek-R1 is a large language model developed by the DeepSeek-AI research team. It is a reasoning model that has been trained using multi-stage training and cold-start data before reinforcement learning (RL). The model demonstrates superior performance on various benchmarks, including MMLU, MMLU-Pro, GPQA Diamond, and FRAMES, particularly in STEM-related questions. ...
+  ```
+
+  ### Reasoning Agent with RAG (agentic-rag)
+
+  Using the R2R Reasoning Agent, retrieval-augmented generation is combined with step-by-step reasoning to produce higher quality responses from your documents.
+
+  <Tabs>
+    <Tab title="Python">
+      ```python
+      streaming_response = client.retrieval.agentic-rag(
+        message={"role":"user", "content": "What does deepseek r1 imply?"},
+        rag_generation_config={
+          "stream": True,
+          "model": "anthropic/claude-3-5-sonnet-20241022",
+        }
+      )
+
+      for chunk in streaming_response:
+          print(chunk)
+      ```
+    </Tab>
+
+    <Tab title="JavaScript">
+      ```javascript
+      // 1) Initiate a streaming RAG request
+      const resultStream = await client.retrieval.rag({
+      query: "What is DeepSeek R1?",
+      searchSettings: { limit: 25 },
+      ragGenerationConfig: { stream: true },
+      });
+
+      // 2) Check if we got an async iterator (streaming)
+      if (Symbol.asyncIterator in resultStream) {
+      // 2a) Loop over each event from the server
+      for await (const event of resultStream) {
+          switch (event.event) {
+          case "search_results":
+              console.log("Search results:", event.data);
+              break;
+          case "message":
+              console.log("Partial message delta:", event.data.delta);
+              break;
+          case "citation":
+              console.log("New citation event:", event.data);
+              break;
+          case "final_answer":
+              console.log("Final answer:", event.data.generated_answer);
+              break;
+          // ... add more cases if you have other event types, e.g. tool_call / tool_result
+          default:
+              console.log("Unknown or unhandled event:", event);
+          }
+      }
+      } else {
+      // 2b) If streaming was NOT enabled or server didn't send SSE,
+      //     we'd get a single response object instead.
+      console.log("Non-streaming RAG response:", resultStream);
+      }
+      ```
+    </Tab>
+  </Tabs>
+
+  Example output:
+
+  ```plaintext
+  <Thought>Calling function: local_search, with payload {"query":"DeepSeek R1"}</Thought>
+  <Thought>The search results provide a comprehensive overview of DeepSeek-R1, highlighting its capabilities and performance across various benchmarks and tasks. DeepSeek-R1 is a reasoning model developed by DeepSeek-AI, which leverages reinforcement learning (RL) and instruction-following data to enhance its performance. It excels in tasks such as writing, open-domain question answering, and handling fact-based queries. The model outperforms its predecessor, DeepSeek-V3, in several areas, although it falls short in some complex tasks like function calling and multi-turn interactions. DeepSeek-R1 also demonstrates strong performance in educational tasks and creative writing, showcasing its versatility and robustness.Key points about DeepSeek-R1 include:- It achieves impressive results on benchmarks like IF-Eval, AlpacaEval2.0, and ArenaHard, indicating strengths in writing and question answering [Source 1].- The model is used as a teacher to distill reasoning capabilities into smaller models, which also perform well on benchmarks [Source 2].- It outperforms DeepSeek-V3 on factual benchmarks like SimpleQA but has limitations in language mixing and certain complex tasks [Sources 3, 5].- DeepSeek-R1 demonstrates expert-level performance in coding tasks and strong results in educational benchmarks like MMLU and GPQA Diamond [Sources 6, 9].Overall, DeepSeek-R1 is a powerful model with a focus on reasoning and instruction-following, achieving competitive performance across a wide range of tasks.</Thought>
+  <Response>DeepSeek-R1 is a reasoning model developed by DeepSeek-AI, known for its strong performance in writing tasks, open-domain question answering, and handling fact-based queries. It leverages reinforcement learning and instruction-following data to enhance its capabilities. The model outperforms its predecessor, DeepSeek-V3, in several areas and is used to distill reasoning capabilities into smaller models. Despite its strengths, it has limitations in complex tasks like function calling and language mixing. Overall, DeepSeek-R1 is a versatile and robust model with competitive performance across various benchmarks.
+  ```
+</Steps>
+
+## Additional Features
+
+R2R offers the additional features below to enhance your document management and user experience.
+
+### Graphs
+
+R2R provides powerful entity and relationshipo extraction capabilities that enhance document understanding and retrieval. These can leveraged to construct knowledge graphs inside R2R. The system can automatically identify entities, build relationships between them, and create enriched knowledge graphs from your document collection.
+
+<CardGroup cols={2}>
+  <Card title="Knowledge Graphs" icon="diagram-project" href="/documentation/graphs">
+    Automatically extract entities and relationships from documents to form knowledge graphs.
+  </Card>
+</CardGroup>
+
+### Users and Collections
+
+R2R provides a complete set of user authentication and management features, allowing you to implement secure and feature-rich authentication systems or integrate with your preferred authentication provider. Further, collections exist to enable efficient access control and organization of users and documents.
+
+<CardGroup cols={2}>
+  <Card title="User Auth Cookbook" icon="key" href="/documentation/user-auth">
+    Learn how to implement user registration, login, email verification, and more using R2R's built-in authentication capabilities.
+  </Card>
+
+  <Card title="Collections Cookbook" icon="database" href="/documentation/collections">
+    Discover how to create, manage, and utilize collections in R2R for granular access control and document organization.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Now that you have a basic understanding of R2R's core features, you can explore more advanced topics:
+
+* Dive into [document ingestion](/documentation/documents) and [the document reference](/api-and-sdks/documents/documents).
+* Learn about [search and RAG](/documentation/hybrid-search) and the [retrieval reference](/api-and-sdks/retrieval/retrieval).
+* Try advanced techniques like [knowledge-graphs](/documentation/graphs) and refer to the [graph reference](/api-and-sdks/graphs/graphs).
+* Learn about [user authentication](/documentation/user-auth) to secure your application permissions and [the users API reference](/api-and-sdks/users/users).
+* Organize your documents using [collections](/api-and-sdks/collections/collections) for granular access control.

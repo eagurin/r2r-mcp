@@ -1,0 +1,207 @@
+# Local LLMs
+
+> Learn how to run a Retrieval-Augmented Generation system locally using R2R
+
+## Introduction
+
+R2R natively supports RAG with local LLMs through [LM Studio](https://github.com/lmstudio-ai) and [Ollama](https://github.com/ollama).
+
+<Info>
+  [Follow along with our Local LLM cookbook for a full walkthrough on how to use R2R with local LLMs!](/cookbooks/local-llms)
+</Info>
+
+<Tabs>
+  <Tab title="Ollama">
+    To get started with Ollama, you must follow the instructions on their [official website](https://ollama.com/).
+
+    To run R2R with default Ollama settings, which utilize `llama3.1` and  `mxbai-embed-large`, run:
+
+    ```Zsh
+    export R2R_CONFIG_NAME=ollama
+    python -m r2r.serve
+    ```
+
+    ## Preparing Local LLMs
+
+    <Error>
+      Ollama has a default context window size of 2048 tokens. Many of the prompts and processes that R2R uses requires larger window sizes.
+
+      It is recommended to set the context size to a minimum of 16k tokens. The following guideline is generally useful to determine what your system can handle:
+
+      * 8GB RAM/VRAM: \~4K-8K context
+      * 16GB RAM/VRAM: \~16K-32K context
+      * 24GB+ RAM/VRAM: 32K+ context
+
+      To change the default you must first create a modelfile for Ollama, where you can set `num_ctx`:
+
+      ```Zsh
+      echo 'FROM llama3.1
+      PARAMETER num_ctx 16000' > Modelfile
+      ```
+
+      Then you must create a manifest for that model:
+
+      ```Zsh
+      ollama create llama3.1 -f Modelfile
+      ```
+    </Error>
+
+    Next, make sure that you have all the necessary LLMs installed:
+
+    ```zsh
+    # in a separate terminal
+    ollama pull llama3.1
+    ollama pull mxbai-embed-large
+    ollama serve
+    ```
+
+    These commands will need to be replaced with models specific to your configuration when deploying R2R with a customized configuration.
+
+    ## Configuration
+
+    R2R uses a TOML configuration file for managing settings, which you can [read about here](/self-hosting/configuration/overview). For local setup, we'll use the default `ollama` configuration. This can be customized to your needs by setting up a standalone project.
+
+    <Accordion icon="gear" title="Local Configuration Details">
+      The `ollama` configuration file (`core/configs/ollama.toml`) includes:
+
+      ```toml
+      [completion]
+      provider = "litellm"
+      concurrent_request_limit = 1
+
+        [completion.generation_config]
+        model = "ollama/llama3.1"
+        temperature = 0.1
+        top_p = 1
+        max_tokens_to_sample = 1_024
+        stream = false
+        add_generation_kwargs = { }
+
+      [database]
+      provider = "postgres"
+
+      [embedding]
+      provider = "ollama"
+      base_model = "mxbai-embed-large"
+      base_dimension = 1_024
+      batch_size = 32
+      add_title_as_prefix = true
+      concurrent_request_limit = 32
+
+      [ingestion]
+      excluded_parsers = [ "mp4" ]
+      ```
+    </Accordion>
+  </Tab>
+
+  <Tab title="LM Studio">
+    To get started with LM Studio, you must follow the instructions on their [official website](https://lmstudio.ai/).
+
+    LiteLLM, which is used to route our LLM requests, requires us to set an API base and API key for LM Studio. The API key can be any value. You must adjust your LM Studio API base to the appropriate location; the default is shown below.
+
+    ```Zsh
+    export LM_STUDIO_API_BASE=http://127.0.0.1:1234
+    export LM_STUDIO_API_KEY=1234
+    ```
+
+    To run R2R with default LM Studio local LLM settings, which utilize `llama-3.2-3b-instruct` and  `text-embedding-nomic-embed-text-v1.5`, run:
+
+    ```Zsh
+    export R2R_CONFIG_NAME=lm_studio
+    python -m r2r.serve
+    ```
+
+    ## Preparing Local LLMs
+
+    Next, make sure that you have all the necessary LLMs installed. Follow the [official documentation](https://lmstudio.ai/docs/basics) from LM Studio to download your LLM and embedding model and load it into memory.
+
+    ## Configuration
+
+    R2R uses a TOML configuration file for managing settings, which you can [read about here](/self-hosting/configuration/overview). For local setup, we'll use the default `ollama` configuration. This can be customized to your needs by setting up a standalone project.
+
+    <Accordion icon="gear" title="Local Configuration Details">
+      The `ollama` configuration file (`core/configs/ollama.toml`) includes:
+
+      ```toml
+      [agent]
+      system_instruction_name = "rag_agent"
+      tool_names = ["local_search"]
+
+        [agent.generation_config]
+        model = "lm_studio/llama-3.2-3b-instruct"
+
+      [completion]
+      provider = "litellm"
+      concurrent_request_limit = 1
+
+        [completion.generation_config]
+        model = "lm_studio/llama-3.2-3b-instruct"
+        temperature = 0.1
+        top_p = 1
+        max_tokens_to_sample = 1_024
+        stream = false
+        add_generation_kwargs = { }
+
+      [embedding]
+      provider = "litellm"
+      base_model = "lm_studio/text-embedding-nomic-embed-text-v1.5"
+      base_dimension = nan
+      batch_size = 128
+      add_title_as_prefix = true
+      concurrent_request_limit = 2
+
+      [database]
+      provider = "postgres"
+
+        [database.graph_creation_settings]
+          graph_entity_description_prompt = "graphrag_entity_description"
+          entity_types = [] # if empty, all entities are extracted
+          relation_types = [] # if empty, all relations are extracted
+          fragment_merge_count = 4 # number of fragments to merge into a single extraction
+          max_knowledge_relationships = 100
+          max_description_input_length = 65536
+          generation_config = { model = "lm_studio/llama-3.2-3b-instruct" } # and other params, model used for relationshipt extraction
+
+        [database.graph_enrichment_settings]
+          community_reports_prompt = "graphrag_community_reports"
+          max_summary_input_length = 65536
+          generation_config = { model = "lm_studio/llama-3.2-3b-instruct" } # and other params, model used for node description and graph clustering
+          leiden_params = {}
+
+        [database.graph_search_settings]
+          generation_config = { model = "lm_studio/llama-3.2-3b-instruct" }
+
+
+      [orchestration]
+      provider = "simple"
+
+
+      [ingestion]
+      vision_img_model = "lm_studio/llama3.2-vision"
+      vision_pdf_model = "lm_studio/llama3.2-vision"
+      chunks_for_document_summary = 16
+      document_summary_model = "lm_studio/llama-3.2-3b-instruct"
+
+        [ingestion.extra_parsers]
+          pdf = "zerox"
+      ```
+    </Accordion>
+  </Tab>
+</Tabs>
+
+For more information on how to configure R2R, [visit here](/self-hosting/configuration/overview).
+
+<Note>
+  We are still working on adding local multimodal RAG features. Your feedback would be appreciated.
+</Note>
+
+The ingestion and graph creation process has been tested across different language models. When selecting a model, consider the tradeoff between performance and model sizeâlarger models often generate more detailed graphs with more elements, while smaller models may be more efficient but produce simpler graphs.
+
+| Model       | Entities | Relationships |
+| ----------- | -------- | ------------- |
+| llama3.1:8B | 76       | 60            |
+| llama3.2:3B | 29       | 29            |
+
+## Summary
+
+The above steps are all you need to get RAG up and running with local LLMs in R2R. For detailed setup and basic functionality, refer back to the [R2R Quickstart](/documentation/quickstart). For more advanced usage and customization options, refer to the [basic configuration](/self-hosting/configuration/overview) or join the [R2R Discord community](https://discord.gg/p6KqD2kjtB).

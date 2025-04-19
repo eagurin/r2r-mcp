@@ -1,0 +1,93 @@
+# Conversations
+
+> Organize and manage multi-turn chat sessions
+
+R2R Conversations enable multi-turn interactions between users and the system, storing messages and preserving context across interactions. They serve as containers for chat sessions, agent interactions, and collaborative discussions.
+
+Refer to the [conversations API and SDK reference](/api-and-sdks/conversations/conversations) for detailed examples for interacting with conversations.
+
+## Core Concepts
+
+Conversations in R2R maintain context through three key mechanisms:
+
+1. **Message Threading** - Messages are stored in chronological order with optional parent-child relationships, enabling threaded discussions and branching conversations.
+
+2. **Context Preservation** - The system preserves conversation context across messages, allowing for coherent multi-turn interactions and advanced retrieval capabilities.
+
+3. **User Association** - Each conversation is owned by a specific user and can be shared with other users, enabling both private and collaborative chat sessions.
+
+## Message Management
+
+### Creating Messages
+
+Messages represent individual turns in a conversation. Each message includes:
+
+* Content (the actual message text)
+* Role (user, assistant, or system)
+* Optional parent message reference
+* Metadata for additional context
+
+Messages can be added to conversations at any time, and the system maintains their chronological order while preserving threading relationships.
+
+### Updating Messages
+
+The system allows for message editing while maintaining conversation integrity:
+
+* Content can be updated
+* Metadata can be modified or enriched
+* Threading relationships remain intact
+* Edit history is preserved in metadata
+
+## Conversation Features
+
+### Organization
+
+Conversations can be organized and managed through:
+
+* Custom naming and descriptions
+* Filtering and search capabilities
+* Metadata tags and annotations
+* Chronological or threaded views
+
+### Access Control
+
+R2R implements straightforward access controls for conversations:
+
+* Private conversations visible only to their owner
+* Shared conversations accessible to specified users
+* Superuser access for system management
+
+## Integration with Agents
+
+<Note>
+  Conversations integrate deeply with R2R's [Agentic RAG](/documentation/retrieval/agentic-rag) system for advanced AI interactions and automated processing.
+</Note>
+
+When used with agents, conversations enable:
+
+* Persistent context for AI interactions
+* Multi-turn query processing
+* Knowledge graph integration
+* Automated content analysis
+
+## Superuser Features
+
+Superusers have access to additional conversation management capabilities:
+
+* Bulk export of conversations
+* Usage analytics and reporting
+* System-wide conversation search
+* Advanced filtering and organization
+
+## Data Management
+
+The system provides tools for effective conversation management:
+
+1. **Retrieval** - Fetch conversations by ID, filter by date, or search content
+2. **Updates** - Modify conversation properties and message content
+3. **Deletion** - Remove conversations while preserving system integrity
+4. **Export** - Download conversation data in standard formats
+
+## Conclusion
+
+R2R Conversations provide a robust foundation for managing multi-turn interactions. Through careful message threading, context preservation, and integration with other R2R systems, conversations enable sophisticated chat applications, agent interactions, and collaborative discussions.

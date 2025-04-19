@@ -1,0 +1,153 @@
+# R2R Full Installation
+
+<Warning>
+  This installation guide is for Full R2R. For solo developers or teams prototyping, we recommend starting with 
+
+  <a href="/self-hosting/installation/light">R2R Light</a>
+
+  .
+</Warning>
+
+This guide will walk you through installing and running R2R using Docker, which is the quickest and easiest way to get started.
+
+## Prerequisites
+
+* Docker installed on your system. If you haven't installed Docker yet, please refer to the [official Docker installation guide](https://docs.docker.com/engine/install/).
+
+## Installation
+
+<Steps>
+  <Step title="Clone the R2R repository">
+    Clone the R2R repository for access to the Docker compose files:
+
+    ```zsh
+    git clone https://github.com/SciPhi-AI/R2R.git
+    cd R2R/docker
+    ```
+  </Step>
+
+  <Step title="Set environment variables">
+    <Note>
+      The full R2R installation uses a pre-built custom configuration [`full.toml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/configs/full.toml) rather than the default [`r2r.toml`](https://github.com/SciPhi-AI/R2R/blob/main/py/r2r/r2r.toml).
+    </Note>
+
+    Navigate to the env directory and set up your environment variables:
+
+    ```zsh
+    cd env
+    # Edit r2r-full.env with your preferred text editor
+    sudo nano r2r-full.env
+    ```
+
+    ### Required Environment Variables
+
+    ### Configuration Selection (choose one)
+
+    | Variable          | Description                     | Default         |
+    | ----------------- | ------------------------------- | --------------- |
+    | `R2R_CONFIG_NAME` | Uses a predefined configuration | `full` (OpenAI) |
+    | `R2R_CONFIG_PATH` | Path to your custom TOML config | None            |
+
+    > Set `R2R_CONFIG_NAME=full_ollama` to use local models instead of cloud providers.
+
+    ### LLM API Keys (at least one required)
+
+    | Provider  | Environment Variable | Used With                          |
+    | --------- | -------------------- | ---------------------------------- |
+    | OpenAI    | `OPENAI_API_KEY`     | `R2R_CONFIG_NAME=full`             |
+    | Anthropic | `ANTHROPIC_API_KEY`  | Custom config or runtime overrides |
+    | Ollama    | `OLLAMA_API_BASE`    | `R2R_CONFIG_NAME=full_ollama`      |
+
+    > For Ollama, the default value is `http://host.docker.internal:11434`
+
+    ### External Agent Tools (optional)
+
+    | Tool         | Environment Variable | Purpose                | Provider Link                           |
+    | ------------ | -------------------- | ---------------------- | --------------------------------------- |
+    | `web_search` | `SERPER_API_KEY`     | Enable web search tool | [Serper](https://serper.dev/)           |
+    | `web_scrape` | `FIRECRAWL_API_KEY`  | Enable web scrape tool | [Firecrawl](https://www.firecrawl.dev/) |
+
+    <Note>
+      These environment variables are only required if you plan to use the `web_search` or `web_scrape` tools with the Agentic RAG functionality. R2R will function without these for local document operations.
+    </Note>
+
+    When starting R2R with agent tools, include these variables with your launch command:
+
+    ```bash
+    # Example with Cloud LLMs and Agent Tools
+    export OPENAI_API_KEY=sk-...
+    export ANTHROPIC_API_KEY=sk-...
+    export SERPER_API_KEY=your_serper_api_key_here
+    export FIRECRAWL_API_KEY=your_firecrawl_api_key_here
+
+    COMPOSE_PROFILES=postgres docker compose -f compose.full.yaml up -d
+    ```
+
+    <a href="/self-hosting/configuration/overview">See the full configuration guide</a> for additional options.
+  </Step>
+
+  <Step title="Custom Configuration (Optional)">
+    If you're using a custom configuration file instead of the built-in options, follow these steps:
+
+    1. Create a TOML configuration file in the `user_configs` directory:
+
+    ```zsh
+    # Navigate to the user_configs directory
+    cd user_configs
+
+    # Create a new configuration file (e.g., my_config.toml)
+    touch my_config.toml
+
+    # Edit the file with your configuration settings
+    nano my_config.toml
+    ```
+
+    2. Update your `r2r-full.env` file to point to this configuration:
+
+    ```
+    R2R_CONFIG_PATH=/app/user_configs/my_config.toml
+    ```
+
+    <Error>
+      The path in `R2R_CONFIG_PATH` must use the container path (`/app/user_configs/`), not your local system path.
+
+      Make sure the specified configuration file actually exists in the `user_configs` directory. The application will fail to start if it cannot find the file at the specified path.
+    </Error>
+
+    For examples and configuration templates, see the [Configuration Guide](/self-hosting/configuration/overview).
+  </Step>
+
+  <Step title="Start the R2R services">
+    Return to the docker directory and start the services:
+
+    ```zsh
+    cd ..
+    docker compose -f compose.full.yaml --profile postgres up -d
+    # `--profile postgres` can be omitted when using external Postgres
+    ```
+  </Step>
+
+  <Step title="Interact with R2R">
+    Ether install the Python or JS SDK, or navigate to [http://localhost:7273](http://localhost:7273) to interact with R2R via the dashboard.
+
+    To install the Python SDK:
+
+    ```zsh
+    pip install r2r
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+After successfully installing R2R:
+
+1. **Verify Installation**: Ensure all components are running correctly by accessing the R2R API at [http://localhost:7272/v3/health](http://localhost:7272/v3/health).
+
+2. **Quick Start**: Follow our [R2R Quickstart Guide](/self-hosting/quickstart) to set up your first RAG application.
+
+3. **In-Depth Tutorial**: For a more comprehensive understanding, work through our [R2R Walkthrough](/documentation/walkthrough).
+
+4. **Customize Your Setup**: [Configuration](/self-hosting/configuration/overview) your R2R system.
+
+If you encounter any issues during installation or setup, please use our [Discord community](https://discord.gg/p6KqD2kjtB) or [GitHub repository](https://github.com/SciPhi-AI/R2R) to seek assistance.

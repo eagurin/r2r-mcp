@@ -1,0 +1,222 @@
+# GCP
+
+> Learn how to deploy R2R into Google Cloud
+
+# Deploying R2R on Google Cloud Platform
+
+Google Cloud Platform (GCP) offers a robust and scalable environment for deploying R2R (Reason to Retrieve). This guide will walk you through the process of setting up R2R on a Google Compute Engine instance, making it accessible both locally and publicly.
+
+## Overview
+
+Deploying R2R on GCP involves the following main steps:
+
+1. Creating a Google Compute Engine instance
+2. Installing necessary dependencies
+3. Setting up R2R
+4. Configuring port forwarding for local access
+5. Exposing ports for public access (optional)
+
+This guide assumes you have a Google Cloud account and the necessary permissions to create and manage Compute Engine instances.
+
+## Creating a Google Compute Engine Instance
+
+1. Log in to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Navigate to "Compute Engine" > "VM instances".
+3. Click "Create Instance".
+4. Choose the following settings:
+   * Name: Choose a name for your instance
+   * Region and Zone: Select based on your location/preferences
+   * Machine Configuration:
+     * Series: N1
+     * Machine type: n1-standard-4 (4 vCPU, 15 GB memory) or higher
+   * Boot disk:
+     * Operating System: Ubuntu
+     * Version: Ubuntu 22.04 LTS
+     * Size: 500 GB
+   * Firewall: Allow HTTP and HTTPS traffic
+5. Click "Create" to launch the instance.
+
+## Installing Dependencies
+
+SSH into your newly created instance using the Google Cloud Console or gcloud command:
+
+```zsh
+gcloud compute ssh --zone "your-zone" "your-instance-name"
+```
+
+Now, run the following commands to install the necessary R2R dependencies:
+
+```zsh
+# Update package list
+sudo apt update
+
+# Install Git
+sudo apt install git -y
+
+# Install Docker
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+# Add your user to the Docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify Docker installation
+docker run hello-world
+```
+
+## Setting up R2R
+
+1. Clone the R2R repository:
+
+```zsh
+git clone https://github.com/SciPhi-AI/R2R.git
+cd R2R/docker
+```
+
+2. Set up environment variables:
+
+```zsh
+cd env
+# Edit r2r-full.env with your preferred text editor
+nano r2r-full.env
+```
+
+Add the necessary environment variables:
+
+```
+# Choose configuration
+R2R_CONFIG_NAME=full
+
+# Add your API key(s)
+OPENAI_API_KEY=sk-...
+
+# Optional - Add agent tool API keys if needed
+# SERPER_API_KEY=your_serper_api_key_here
+# FIRECRAWL_API_KEY=your_firecrawl_api_key_here
+```
+
+3. Start the R2R services:
+
+```zsh
+cd ..
+docker compose -f compose.full.yaml --profile postgres up -d
+```
+
+4. Verify the health of the system:
+
+```zsh
+# Wait for services to start
+sleep 30
+
+# Check health
+curl http://localhost:7272/v3/health
+```
+
+5. Test ingesting and searching a sample document from a remote environment:
+
+```zsh
+# From your local machine
+curl -X POST "http://YOUR_INSTANCE_IP:7272/v3/documents/create-sample"
+sleep 10
+curl -X POST "http://YOUR_INSTANCE_IP:7272/v3/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Who was aristotle?"}'
+```
+
+Replace `YOUR_INSTANCE_IP` with your Google Compute Engine instance's external IP address.
+
+## Configuring Port Forwarding for Local Access
+
+To access R2R from your local machine, use SSH port forwarding:
+
+```zsh
+gcloud compute ssh --zone "your-zone" "your-instance-name" -- -L 7272:localhost:7272 -L 7273:localhost:7273
+```
+
+This will allow you to access:
+
+* The API at [http://localhost:7272](http://localhost:7272)
+* The dashboard at [http://localhost:7273](http://localhost:7273)
+
+## Exposing Ports for Public Access (Optional)
+
+To make R2R publicly accessible:
+
+1. In the Google Cloud Console, go to "VPC network" > "Firewall".
+
+2. Click "Create Firewall Rule".
+
+3. Configure the rule:
+   * Name: Allow-R2R-Ports
+   * Target tags: r2r-server
+   * Source IP ranges: 0.0.0.0/0 (or restrict to specific IP ranges for better security)
+   * Specified protocols and ports:
+     * tcp:7272 (API)
+     * tcp:7273 (Dashboard)
+
+4. Click "Create".
+
+5. Add the network tag to your instance:
+   * Go to Compute Engine > VM instances.
+   * Click on your instance name.
+   * Click "Edit".
+   * Under "Network tags", add "r2r-server".
+   * Click "Save".
+
+After starting your R2R application, users can access:
+
+* The API at http\://YOUR\_INSTANCE\_IP:7272
+* The dashboard at http\://YOUR\_INSTANCE\_IP:7273
+
+## Security Considerations
+
+* Use HTTPS (port 443) with a valid SSL certificate for production.
+* Restrict source IP addresses in the firewall rule if possible.
+* Regularly update and patch your system and applications.
+* Use GCP Identity and Access Management (IAM) for secure access control.
+* Consider using Google Cloud Armor for additional security.
+* Set up Cloud Monitoring for tracking system performance.
+* Enable audit logging to track who is accessing your instance.
+* Remove or disable the firewall rule when not needed for testing.
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Check Docker container status:
+
+```
+docker ps
+docker logs <container_id>
+```
+
+2. Verify environment variables are correctly set in r2r-full.env.
+
+3. Ensure ports are correctly exposed in your firewall rules.
+
+4. Check disk space and system resources:
+
+```
+df -h
+free -m
+```
+
+5. Review GCP Stackdriver logs for any system-level issues.
+
+## Conclusion
+
+You have now successfully deployed R2R on Google Cloud Platform. The application should be accessible locally through SSH tunneling and optionally publicly through direct access to the Compute Engine instance.
+
+For more information on configuring and using R2R, refer to the [configuration documentation](/self-hosting/configuration/overview) or join our [Discord community](https://discord.gg/p6KqD2kjtB) for assistance.

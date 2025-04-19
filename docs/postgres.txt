@@ -1,0 +1,147 @@
+# Postgres
+
+> Configure your Postgres database
+
+## Postgres Database
+
+R2R uses Postgres as the sole provider for relational and vector search queries. This means that Postgres is involved in handling authentication, document management, and search across R2R. For robust search capabilities, R2R leverages the `pgvector` extension and `ts_rank` to implement [customizable hybrid search](/documentation/search-and-rag).
+
+<Note>
+  R2R chooses Postgres as its core technology for several reasons:
+
+  * **Versatility**: Postgres is a robust, advanced database that can handle both relational data and vector embeddings.
+  * **Simplicity**: By using Postgres for both traditional data and vector search, R2R eliminates the need for complex syncing between separate databases.
+  * **Familiarity**: Many developers are already comfortable with Postgres, making it easier to integrate R2R into existing workflows.
+  * **Extensibility**: Postgres's rich ecosystem of extensions allows R2R to leverage advanced features and optimizations.
+
+  Read more about [Postgres here](https://www.postgresql.org/).
+</Note>
+
+## Postgres Configuration
+
+To customize the database settings, you can modify the `database` section in your `r2r.toml` file and set corresponding environment variables or provide the settings directly in the configuration file.
+
+1. **Edit the `database` section in your `r2r.toml` file:**
+
+```toml
+[database]
+provider = "postgres"  # currently only `postgres` is supported
+
+# Optional parameters (typically set in the environment instead):
+user     = "your_postgres_user"
+password = "your_postgres_password"
+host     = "your_postgres_host"
+port     = 5432           # Use a numeric port (not quoted)
+db_name  = "your_database_name"
+# not specified here, but note: `app.project_name` sets the root path (schema/prefix) to all R2R tables.
+```
+
+2. **Alternatively, set the following environment variables:**
+
+```zsh
+export R2R_POSTGRES_USER=your_postgres_user
+export R2R_POSTGRES_PASSWORD=your_postgres_password
+export R2R_POSTGRES_HOST=your_postgres_host
+export R2R_POSTGRES_PORT=5432
+export R2R_POSTGRES_DBNAME=your_database_name
+export R2R_PROJECT_NAME=your_project_name  # This value is used as the root path for all R2R tables.
+```
+
+## Advanced Postgres Features in R2R
+
+R2R leverages several advanced Postgres features to provide powerful search and retrieval capabilities:
+
+### pgvector Extension
+
+R2R uses the `pgvector` extension to enable efficient vector similarity search. This is crucial for semantic search operations. The `collection.py` file defines a custom `Vector` type that interfaces with `pgvector`:
+
+```python
+class Vector(UserDefinedType):
+    # ... (implementation details)
+
+    class comparator_factory(UserDefinedType.Comparator):
+        def l2_distance(self, other):
+            return self.op("<->", return_type=Float)(other)
+
+        def max_inner_product(self, other):
+            return self.op("<#>", return_type=Float)(other)
+
+        def cosine_distance(self, other):
+            return self.op("<=>", return_type=Float)(other)
+```
+
+This allows R2R to perform efficient vector similarity searches using different distance measures.
+
+### Hybrid Search
+
+R2R implements a sophisticated hybrid search which combines full-text search and vector similarity search. This approach provides more accurate and contextually relevant results. Key components of the hybrid search include:
+
+1. **Full-Text Search**: Utilizes Postgres's built-in full-text search capabilities with `ts_rank` and `websearch_to_tsquery`.
+2. **Semantic Search**: Performs vector similarity search using `pgvector`.
+3. **Reciprocal Rank Fusion (RRF)**: Merges results from full-text and semantic searches.
+
+In addition, R2R offers robust logical filters on metadata (e.g., operations such as `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `in`, and `nin`). Refer to the [retrieval API documentation](/api-and-sdks/retrieval/retrieval) for all available inputs.
+
+### Indexing
+
+#### Vector Similarity Search
+
+R2R supports two primary indexing methods for vector similarity search through pgvector: **HNSW** (Hierarchical Navigable Small World) and **IVF-Flat** (Inverted File with Flat Storage).
+
+* **HNSW** offers faster search times and better recall but requires more memory and slower build times, making it ideal for production environments where query speed is critical.
+* **IVF-Flat** provides a balanced approach with faster index construction and lower memory usage, suitable for scenarios requiring a trade-off between build speed and query performance.
+
+Both methods support cosine, L2, and inner product distance measures. See the [index API Reference](/api-and-sdks/indices/indices) for detailed configuration options and management endpoints.
+
+#### Full-Text Search
+
+R2R uses GIN (Generalized Inverted Index) indexing to optimize full-text searches:
+
+```python
+Index(f"idx_{name}_fts", "fts", postgresql_using="gin"),
+```
+
+This indexing strategy allows for efficient full-text search.
+
+### JSON Support
+
+R2R leverages Postgres's JSONB type for flexible metadata storage:
+
+```python
+Column(
+    "metadata",
+    postgresql.JSONB,
+    server_default=text("'{}'::jsonb"),
+    nullable=False,
+)
+```
+
+This allows for efficient storage and querying of structured metadata alongside vector embeddings.
+
+## Performance Considerations
+
+When setting up Postgres for R2R, consider the following performance optimizations:
+
+1. **Indexing**: Ensure proper indexing for both full-text and vector searches. While R2R automatically creates necessary indexes, you may need to optimize them based on your specific usage patterns.
+2. **Hardware**: For large-scale deployments, consider using dedicated Postgres instances with sufficient CPU and RAM to handle vector operations efficiently.
+3. **Vacuuming**: Regular vacuuming helps maintain database performance, especially for tables with frequent updates or deletions.
+4. **Partitioning**: For very large datasets, consider table partitioning to improve query performance.
+
+> **Maintenance Tip:** Regularly schedule maintenance tasks (e.g., VACUUM and REINDEX operations) to ensure optimal performance.
+
+## Additional Recommendations
+
+* **Extension Installation:**\
+  Ensure that your Postgres instance has the required extensions installed. For example, you can run:
+  ```sql
+  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+  CREATE EXTENSION IF NOT EXISTS vector;
+  CREATE EXTENSION IF NOT EXISTS pg_trgm;
+  CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+  ```
+  Refer to the [Postgres documentation](https://www.postgresql.org/docs/current/) for further details.
+
+* **Schema Upgrades:**\
+  If you encounter errors related to old table names or schema mismatches, please run `r2r db upgrade` (or follow the migration documentation) to update your database schema to the latest version.
+
+By incorporating these recommendations, you ensure that your Postgres configuration is not only functionally complete but also optimized for performance and maintainability. The clarification regarding `app.project_name` helps users understand that this value drives the schema (or table name prefix) for all R2R tables, even though it isnât set directly within the `[database]` section.

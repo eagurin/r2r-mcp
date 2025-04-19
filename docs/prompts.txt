@@ -1,0 +1,137 @@
+# Prompts
+
+> Configure your prompts
+
+## Prompt Management in R2R
+
+R2R provides a flexible system for managing prompts, allowing you to create, update, retrieve, and delete prompts dynamically. This system is crucial for customizing the behavior of language models and ensuring consistent interactions across your application.
+
+## Default Prompts
+
+R2R comes with a set of default prompts that are loaded from YAML files located in the [`py/core/providers/database/prompts`](https://github.com/SciPhi-AI/R2R/tree/main/py/core/providers/database/prompts) directory. These default prompts provide a starting point for various tasks within the R2R system.
+
+For example, the default RAG (Retrieval-Augmented Generation) prompt is defined as follows:
+
+```yaml
+default_rag:
+  template: >
+    ## Task:
+
+    Answer the query given immediately below given the context which follows later. Use line item references to like [1], [2], ... refer to specifically numbered items in the provided context. Pay close attention to the title of each given source to ensure it is consistent with the query.
+
+
+    ### Query:
+
+    {query}
+
+
+    ### Context:
+
+    {context}
+
+
+    ### Query:
+
+    {query}
+
+
+    REMINDER - Use line item references to like [1], [2], ... refer to specifically numbered items in the provided context.
+
+    ## Response:
+  input_types:
+    query: str
+    context: str
+```
+
+### Default Prompt Usage
+
+<Warning>
+   This table can fall out of date, refer to the 
+
+  [prompts directory](https://github.com/SciPhi-AI/R2R/tree/main/py/core/providers/database/prompts)
+
+   in the R2R repository as a source of truth. 
+</Warning>
+
+| Prompt File                                                                                                                                                                  | Purpose                                                                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`default_rag.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/default_rag.yaml)                                                         | Default prompt for Retrieval-Augmented Generation (RAG) tasks. It instructs the model to answer queries based on provided context, using line item references. |
+| [`graphrag_community_reports.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/graphrag_communities.yaml)                                 | Used in GraphRAG to generate reports about communities or clusters in the knowledge graph.                                                                     |
+| [`graphrag_entity_description.yaml.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/graphrag_entity_description.yaml)                    | System prompt for the "map" phase in GraphRAG, used to process individual nodes or edges.                                                                      |
+| [`graphrag_map_system.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/graphrag_map_system.yaml)                                         | System prompt for the "map" phase in GraphRAG, used to process individual nodes or edges.                                                                      |
+| [`graphrag_reduce_system.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/graphrag_reduce_system.yaml)                                   | System prompt for the "reduce" phase in GraphRAG, used to combine or summarize information from multiple sources.                                              |
+| [`graphrag_triples_extraction_few_shot.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/graphrag_relationships_extraction_few_shot.yaml) | Few-shot prompt for extracting subject-predicate-object triplets in GraphRAG, with examples.                                                                   |
+| [`hyde.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/hyde.yaml)                                                                       | Related to Hypothetical Document Embeddings (HyDE) for improving retrieval performance.                                                                        |
+| [`rag_agent.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/rag_agent.yaml)                                                             | Defines the behavior and instructions for the RAG agent, which coordinates the retrieval and generation process.                                               |
+| [`rag_fusion.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/rag_fusion.yaml)                                                           | Used in RAG fusion techniques, possibly for combining information from multiple retrieved passages.                                                            |
+| [`system.yaml`](https://github.com/SciPhi-AI/R2R/blob/main/py/core/providers/database/prompts/default_system.yaml)                                                           | Contains general system-level prompts or instructions for the R2R system.                                                                                      |
+
+You can find the full list of default prompts and their contents in the [prompts directory](https://github.com/SciPhi-AI/R2R/tree/main/py/core/providers/database/prompts).
+
+## Prompt Provider
+
+R2R uses a postgres class to manage prompts. This allows for storage, retrieval, and manipulation of prompts, leveraging both a Postgres database and YAML files for flexibility and persistence.
+
+Key features of prompts inside R2R:
+
+1. **Database Storage**: Prompts are stored in a Postgres table, allowing for efficient querying and updates.
+2. **YAML File Support**: Prompts can be loaded from YAML files, providing an easy way to version control and distribute default prompts.
+3. **In-Memory Cache**: Prompts are kept in memory for fast access during runtime.
+
+## Prompt Structure
+
+Each prompt in R2R consists of:
+
+* **Name**: A unique identifier for the prompt.
+* **Template**: The actual text of the prompt, which may include placeholders for dynamic content.
+* **Input Types**: A dictionary specifying the expected types for any dynamic inputs to the prompt.
+
+## Managing Prompts
+
+R2R provides several endpoints and SDK methods for managing prompts:
+
+### Adding a Prompt
+
+To add a new prompt:
+
+```python
+response = client.prompts.add_prompt(
+    name="my_new_prompt",
+    template="Hello, {name}! Welcome to {service}.",
+    input_types={"name": "str", "service": "str"}
+)
+```
+
+### Updating a Prompt
+
+To update an existing prompt:
+
+```python
+response = client.prompts.update_prompt(
+    name="my_existing_prompt",
+    template="Updated template: {variable}",
+    input_types={"variable": "str"}
+)
+```
+
+### Retrieving a Prompt
+
+To get a specific prompt:
+
+```python
+response = client.prompts.get_prompt(
+    prompt_name="my_prompt",
+    inputs={"variable": "example"},
+    prompt_override="Optional override text"
+)
+```
+
+Refer directly to the [Prompt API Reference](/api-and-sdks/prompts) for more details.
+
+## Security Considerations
+
+Access to prompt management functions is restricted to superusers to prevent unauthorized modifications to system prompts. Ensure that only trusted administrators have superuser access to your R2R deployment.
+
+## Conclusion
+
+R2R's prompt management system provides a powerful and flexible way to control the behavior of language models in your application. By leveraging this system effectively, you can create more dynamic, context-aware, and maintainable AI-powered features.

@@ -1,0 +1,288 @@
+# Embedding
+
+> Configure your embedding system
+
+## Embedding System
+
+R2R uses embeddings as the foundation for semantic search and similarity matching capabilities. The embedding system is responsible for converting text into high-dimensional vectors that capture semantic meaning, enabling powerful search and retrieval operations.
+
+<Note>
+  R2R uses LiteLLM as to route embeddings requests because of their provider flexibility. Read more about [LiteLLM here](https://docs.litellm.ai/).
+</Note>
+
+## Embedding Configuration
+
+The embedding system can be customized through the `embedding` section in your `r2r.toml` file, along with corresponding environment variables for sensitive information:
+
+```toml r2r.toml
+[embedding]
+provider = "litellm" # defaults to "litellm"
+base_model = "openai/text-embedding-3-small" # defaults to "openai/text-embedding-3-large"
+base_dimension = 512 # defaults to 3072
+batch_size = 512 # defaults to 128
+rerank_model = "BAAI/bge-reranker-v2-m3" # defaults to None
+concurrent_request_limit = 256 # defaults to 256
+```
+
+Relevant environment variables to the above configuration would be `OPENAI_API_KEY`, `OPENAI_API_BASE`, `HUGGINGFACE_API_KEY`, and `HUGGINGFACE_API_BASE`.
+
+## Advanced Embedding Features in R2R
+
+R2R leverages several advanced embedding features to provide robust text processing and retrieval capabilities:
+
+### Concurrent Request Management
+
+The system implements sophisticated request handling with rate limiting and concurrency control:
+
+1. **Rate Limiting**: Prevents API throttling through intelligent request scheduling
+2. **Concurrent Processing**: Manages multiple embedding requests efficiently
+3. **Error Handling**: Implements retry logic with exponential backoff
+
+## Performance Considerations
+
+When configuring embeddings in R2R, consider these optimization strategies:
+
+1. **Batch Size Optimization**:
+   * Larger batch sizes improve throughput but increase latency
+   * Consider provider-specific rate limits when setting batch size
+   * Balance memory usage with processing speed
+
+2. **Concurrent Requests**:
+   * Adjust `concurrent_request_limit` based on provider capabilities
+   * Monitor API usage and adjust limits accordingly
+   * Consider implementing local caching for frequently embedded texts
+
+3. **Model Selection**:
+   * Balance embedding dimension size with accuracy requirements
+   * Consider cost per token for different providers
+   * Evaluate multilingual requirements when choosing models
+
+4. **Resource Management**:
+   * Monitor memory usage with large batch sizes
+   * Implement appropriate error handling and retry strategies
+   * Consider implementing local model fallbacks for critical systems
+
+### Supported  LiteLLM Providers
+
+<Note>
+   Select from the toggleable providers below. 
+</Note>
+
+<Tabs>
+  <Tab title="OpenAI">
+    Example configuration:
+
+    ```toml example r2r.toml
+    provider = "litellm"
+    base_model = "openai/text-embedding-3-small"
+    base_dimension = 512
+    ```
+
+    ```zsh
+    export OPENAI_API_KEY=your_openai_key
+    # .. set other environment variables
+
+    export R2R_CONFIG_PATH=path_to_your_config
+    python -m r2r.serve
+    ```
+
+    Supported models include:
+
+    * openai/text-embedding-3-small
+    * openai/text-embedding-3-large
+    * openai/text-embedding-ada-002
+  </Tab>
+
+  <Tab title="Azure">
+    Example configuration:
+
+    ```toml example r2r.toml
+    provider = "litellm"
+    base_model = "azure/<your deployment name>"
+    base_dimension = XXX
+    ```
+
+    ```zsh
+    export AZURE_API_KEY=your_azure_api_key
+    export AZURE_API_BASE=your_azure_api_base
+    export AZURE_API_VERSION=your_azure_api_version
+    # .. set other environment variables
+
+    python -m r2r.serve
+    ```
+
+    Supported models include:
+
+    * text-embedding-ada-002
+
+    For detailed usage instructions, refer to the [LiteLLM Azure Embedding documentation](https://docs.litellm.ai/docs/embedding/supported_embedding#azure-openai-embedding-models).
+  </Tab>
+
+  <Tab title="Anthropic">
+    Anthropic does not currently offer embedding models. Consider using OpenAI or another provider for embeddings.
+  </Tab>
+
+  <Tab title="Cohere">
+    Example configuration:
+
+    ```toml example r2r.toml
+    provider = "litellm"
+    base_model = "cohere/embed-english-v3.0"
+    base_dimension = 1_024
+    ```
+
+    ```zsh
+    export COHERE_API_KEY=your_cohere_api_key
+    # .. set other environment variables
+
+    export R2R_CONFIG_PATH=path_to_your_config
+    python -m r2r.serve
+    ```
+
+    Supported models include:
+
+    * cohere/embed-english-v3.0
+    * cohere/embed-english-light-v3.0
+    * cohere/embed-multilingual-v3.0
+    * cohere/embed-multilingual-light-v3.0
+    * cohere/embed-english-v2.0
+    * cohere/embed-english-light-v2.0
+    * cohere/embed-multilingual-v2.0
+
+    For detailed usage instructions, refer to the [LiteLLM Cohere Embedding documentation](https://docs.litellm.ai/docs/embedding/supported_embedding#cohere-embedding-models).
+  </Tab>
+
+  <Tab title="Ollama">
+    When running with Ollama, additional changes are recommended for the to the `r2r.toml` file. In addition to using the `ollama` provider directly, we recommend restricting the `concurrent_request_limit` in order to avoid exceeding the throughput of your Ollama server.
+
+    ```toml example r2r.toml
+    [embedding]
+    provider = "ollama"
+    base_model = "ollama/mxbai-embed-large"
+    base_dimension = 1_024
+    batch_size = 32
+    add_title_as_prefix = true
+    ```
+
+    ```zsh
+    # Ensure your Ollama server is running
+    # Default Ollama server address: http://localhost:11434
+    # Default Ollama server address: http://localhost:11434
+    # export R2R_CONFIG_NAME=ollama
+    # python -m r2r.serve
+    ```
+
+    Then, deploy your R2R server with:
+
+    ```Zsh
+    export R2R_CONFIG_PATH=path_to_your_config
+    python -m r2r.server
+    ```
+  </Tab>
+
+  <Tab title="HuggingFace">
+    Example configuration:
+
+    ```toml example r2r.toml
+    [embedding]
+    provider = "litellm"
+    base_model = "huggingface/microsoft/codebert-base"
+    base_dimension = 768
+    ```
+
+    ```python
+    export HUGGINGFACE_API_KEY=your_huggingface_api_key
+
+    export R2R_CONFIG_PATH=path_to_your_config
+    python -m r2r.serve
+    ```
+
+    LiteLLM supports all Feature-Extraction Embedding models on HuggingFace.
+
+    For detailed usage instructions, refer to the [LiteLLM HuggingFace Embedding documentation](https://docs.litellm.ai/docs/embedding/supported_embedding#huggingface-embedding-models).
+  </Tab>
+
+  <Tab title="Bedrock">
+    Example configuration:
+
+    ```toml example r2r.toml
+    provider = "litellm"
+    base_model = "bedrock/amazon.titan-embed-text-v1"
+    base_dimension = 1_024
+    ```
+
+    ```zsh
+    export AWS_ACCESS_KEY_ID=your_access_key
+    export AWS_SECRET_ACCESS_KEY=your_secret_key
+    export AWS_REGION_NAME=your_region_name
+    # .. set other environment variables
+
+    export R2R_CONFIG_PATH=path_to_your_config
+    python -m r2r.serve
+    ```
+
+    Supported models include:
+
+    * amazon.titan-embed-text-v1
+    * cohere.embed-english-v3
+    * cohere.embed-multilingual-v3
+
+    For detailed usage instructions, refer to the [LiteLLM Bedrock Embedding documentation](https://docs.litellm.ai/docs/embedding/supported_embedding#bedrock-embedding).
+  </Tab>
+
+  <Tab title="Vertex AI">
+    Example configuration:
+
+    ```toml example r2r.toml
+    provider = "litellm"
+    base_model = "vertex_ai/textembedding-gecko"
+    base_dimension = 768
+    ```
+
+    ```zsh
+    export GOOGLE_APPLICATION_CREDENTIALS=path/to/your/credentials.json
+    export VERTEX_PROJECT=your_project_id
+    export VERTEX_LOCATION=your_project_location
+    # .. set other environment variables
+
+    export R2R_CONFIG_PATH=path_to_your_config
+    python -m r2r.serve
+    ```
+
+    Supported models include:
+
+    * vertex\_ai/textembedding-gecko
+    * vertex\_ai/textembedding-gecko-multilingual
+    * vertex\_ai/textembedding-gecko\@001
+    * vertex\_ai/textembedding-gecko\@003
+    * vertex\_ai/text-embedding-preview-0409
+    * vertex\_ai/text-multilingual-embedding-preview-0409
+
+    For detailed usage instructions, refer to the [LiteLLM Vertex AI Embedding documentation](https://docs.litellm.ai/docs/embedding/supported_embedding#vertex-ai-embedding-models).
+  </Tab>
+
+  <Tab title="Voyage AI">
+    Example Configuration
+
+    ```toml example r2r.toml
+    provider = "litellm"
+    base_model = "voyage/voyage-01"
+    base_dimension = 1_024
+    ```
+
+    ```zsh
+    export VOYAGE_API_KEY=your_voyage_api_key
+    # .. set other environment variables
+
+    python -m r2r.serve -config-path=r2r.toml
+    ```
+
+    Supported models include:
+
+    * voyage/voyage-01
+    * voyage/voyage-lite-01
+    * voyage/voyage-lite-01-instruct
+
+    For detailed usage instructions, refer to the [LiteLLM Voyage AI Embedding documentation](https://docs.litellm.ai/docs/embedding/supported_embedding#voyage-ai-embedding-models).
+  </Tab>
+</Tabs>

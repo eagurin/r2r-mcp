@@ -1,0 +1,212 @@
+# AWS
+
+> Learn how to deploy R2R into AWS
+
+# Deploying R2R on Amazon Web Services (AWS)
+
+Amazon Web Services (AWS) provides a robust and scalable platform for deploying R2R (Reason to Retrieve). This guide will walk you through the process of setting up R2R on an Amazon EC2 instance, making it accessible both locally and publicly.
+
+## Overview
+
+Deploying R2R on AWS involves the following main steps:
+
+1. Creating an Amazon EC2 instance
+2. Installing necessary dependencies
+3. Setting up R2R
+4. Configuring port forwarding for local access
+5. Exposing ports for public access (optional)
+
+This guide assumes you have an AWS account and the necessary permissions to create and manage EC2 instances.
+
+## Creating an Amazon EC2 Instance
+
+1. Log in to the [AWS Management Console](https://aws.amazon.com/console/).
+2. Navigate to EC2 under "Compute" services.
+3. Click "Launch Instance".
+4. Choose an Amazon Machine Image (AMI):
+   * Select "Ubuntu Server 22.04 LTS (HVM), SSD Volume Type"
+5. Choose an Instance Type:
+   * For a small-mid sized organization (\< 5000 users), select t3.xlarge (4 vCPU, 16 GiB Memory) or higher
+6. Configure Instance Details:
+   * Leave default settings or adjust as needed
+7. Add Storage:
+   * Set the root volume to at least 500 GiB
+8. Add Tags (optional):
+   * Add any tags for easier resource management
+9. Configure Security Group:
+   * Create a new security group
+   * Add rules to allow inbound traffic on ports 22 (SSH) and 7272 (R2R API)
+10. Review and Launch:
+    * Review your settings and click "Launch"
+    * Choose or create a key pair for SSH access
+
+## Installing Dependencies
+
+SSH into your newly created EC2 instance:
+
+```zsh
+ssh -i /path/to/your-key.pem ubuntu@your-instance-public-dns
+```
+
+Now, run the following commands to install the necessary R2R dependencies:
+
+```zsh
+# Update package list
+sudo apt update
+
+# Install Git
+sudo apt install git -y
+
+# Install Docker
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+# Add your user to the Docker group
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify Docker installation
+docker run hello-world
+```
+
+## Setting up R2R
+
+1. Clone the R2R repository:
+
+```zsh
+git clone https://github.com/SciPhi-AI/R2R.git
+cd R2R/docker
+```
+
+2. Set up environment variables:
+
+```zsh
+cd env
+# Edit r2r-full.env with your preferred text editor
+nano r2r-full.env
+```
+
+Add the necessary environment variables:
+
+```
+# Choose configuration
+R2R_CONFIG_NAME=full
+
+# Add your API key(s)
+OPENAI_API_KEY=sk-...
+
+# Optional - Add agent tool API keys if needed
+# SERPER_API_KEY=your_serper_api_key_here
+# FIRECRAWL_API_KEY=your_firecrawl_api_key_here
+```
+
+3. Start the R2R services:
+
+```zsh
+cd ..
+docker compose -f compose.full.yaml --profile postgres up -d
+```
+
+4. Verify the health of the system:
+
+```zsh
+# Wait for services to start
+sleep 30
+
+# Check health
+curl http://localhost:7272/v3/health
+```
+
+5. Test ingesting and searching a sample document from a remote environment:
+
+```zsh
+# From your local machine
+curl -X POST "http://YOUR_INSTANCE_IP:7272/v3/documents/create-sample"
+sleep 10
+curl -X POST "http://YOUR_INSTANCE_IP:7272/v3/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Who was aristotle?"}'
+```
+
+Replace `YOUR_INSTANCE_IP` with your EC2 instance's public IP address.
+
+## Configuring Port Forwarding for Local Access
+
+To access R2R from your local machine, use SSH port forwarding:
+
+```zsh
+ssh -i /path/to/your-key.pem -L 7272:localhost:7272 -L 7273:localhost:7273 ubuntu@your-instance-public-dns
+```
+
+This will allow you to access:
+
+* The API at [http://localhost:7272](http://localhost:7272)
+* The dashboard at [http://localhost:7273](http://localhost:7273)
+
+## Exposing Ports for Public Access (Optional)
+
+To make R2R publicly accessible:
+
+1. In the AWS Management Console, go to EC2 > Security Groups.
+2. Select the security group associated with your EC2 instance.
+3. Click "Edit inbound rules".
+4. Add new rules:
+   * Type: Custom TCP, Port range: 7272, Source: Anywhere (0.0.0.0/0), Description: R2R API
+   * Type: Custom TCP, Port range: 7273, Source: Anywhere (0.0.0.0/0), Description: R2R Dashboard
+5. Click "Save rules".
+
+After starting your R2R application, users can access:
+
+* The API at http\://YOUR\_INSTANCE\_IP:7272
+* The dashboard at http\://YOUR\_INSTANCE\_IP:7273
+
+## Security Considerations
+
+* Use HTTPS (port 443) with a valid SSL certificate for production.
+* Restrict source IP addresses in the security group rule if possible.
+* Regularly update and patch your system and applications.
+* Use AWS VPC for network isolation.
+* Enable and configure AWS CloudTrail for auditing.
+* Use AWS IAM roles for secure access management.
+* Consider using AWS Certificate Manager for SSL/TLS certificates.
+* Monitor incoming traffic using AWS CloudWatch.
+* Remove or disable the security group rule when not needed for testing.
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Check Docker container status:
+
+```
+docker ps
+docker logs <container_id>
+```
+
+2. Verify environment variables are correctly set in r2r-full.env.
+
+3. Ensure ports are correctly exposed in your security group.
+
+4. Check disk space and system resources:
+
+```
+df -h
+free -m
+```
+
+## Conclusion
+
+You have now successfully deployed R2R on Amazon Web Services. The application should be accessible locally through SSH tunneling and optionally publicly through direct access to the EC2 instance.
+
+For more information on configuring and using R2R, refer to the [configuration documentation](/self-hosting/configuration/overview) or join our [Discord community](https://discord.gg/p6KqD2kjtB) for assistance.

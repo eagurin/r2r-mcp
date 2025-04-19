@@ -1,0 +1,15 @@
+# What's New
+
+> Changelog
+
+## Version 0.3.5 â March. 2025
+
+### New Features
+
+* Improved API released for Agentic RAG  [(agentic-rag)](/documentation/retrieval/agentic-rag)
+* SSE streaming output for RAG
+* Improved citations for robust provenance
+
+### Bug Fixes
+
+* Minor bug fixes around local LLM setup / operation

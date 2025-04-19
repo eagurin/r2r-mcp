@@ -1,0 +1,120 @@
+# Cloud Limits
+
+> Default Quotas, Rate Limits, & File Size Constraints
+
+SciPhi Cloud imposes limits to govern the maximum number of documents, chunks, and collections per user, as well as rate limits for requests and file-upload sizes. The same defaults apply when you deploy R2R locally (though you can override them in your local `r2r.toml`).
+
+***
+
+## Overview of Limits
+
+### Default Limits
+
+Below are the **default** per-user limits for **all** R2R Cloud deployments:
+
+| Resource / Action              | Default Limit            | Notes                                                       |
+| ------------------------------ | ------------------------ | ----------------------------------------------------------- |
+| **Documents**                  | 100                      | Maximum number of documents you can upload                  |
+| **Chunks**                     | 10,000                   | Maximum total chunks derived from uploaded files            |
+| **Collections**                | 5                        | Maximum number of collections per user                      |
+| **File Upload** (global)       | 2 MB (2,000,000 bytes)   | Overall max file upload size if no extension-specific limit |
+| **File Upload** (by extension) | See table below          | Certain file types can have their own max size              |
+| **Rate Limit** (global)        | 60 requests/min per user | -                                                           |
+
+**Note**: Additionally, our Nginx ingress layer applies a **60 requests/minute per IP** limit.\
+Thus, a single IP cannot exceed 60 requests/minute, regardless of user account.
+
+***
+
+### File Upload Size by Extension
+
+R2R Cloud enforces specific maximum file sizes for different file types. If no extension-specific limit is found, we fall back to the global `2 MB` limit.
+
+| Extension                    | Max Size (bytes) | Approx. MB | Notes                                |
+| ---------------------------- | ---------------- | ---------: | ------------------------------------ |
+| **txt**                      | 2,000,000        |      \~2.0 | Plain text files                     |
+| **md**                       | 2,000,000        |      \~2.0 | Markdown                             |
+| **csv**                      | 5,000,000        |      \~5.0 | CSV spreadsheets                     |
+| **xml**                      | 2,000,000        |      \~2.0 | XML markup                           |
+| **doc**                      | 10,000,000       |     \~10.0 | MS Word (legacy)                     |
+| **docx**                     | 10,000,000       |     \~10.0 | MS Word (modern)                     |
+| **ppt**                      | 20,000,000       |     \~20.0 | MS PowerPoint (legacy)               |
+| **pptx**                     | 20,000,000       |     \~20.0 | MS PowerPoint (modern)               |
+| **xls**                      | 10,000,000       |     \~10.0 | MS Excel (legacy)                    |
+| **xlsx**                     | 10,000,000       |     \~10.0 | MS Excel (modern)                    |
+| **pdf**                      | 30,000,000       |     \~30.0 | PDF can expand significantly in text |
+| **epub**                     | 10,000,000       |     \~10.0 | E-book format                        |
+| **jpeg** / **jpg** / **png** | 5,000,000        |      \~5.0 | Images                               |
+| *...more*                    | *varies*         |          - | Configurable in `r2r.toml`           |
+
+> You can customize or override these limits in your own `r2r.toml` if deploying locally.
+
+***
+
+### Route-Specific Rate Limits
+
+In the `cloud.toml` example, certain endpoints have additional per-route limits. For instance:
+
+| Route                       | Requests/Min | Monthly Limit | Notes                          |
+| --------------------------- | ------------ | ------------- | ------------------------------ |
+| `/v3/retrieval/search`      | 10           | 3,000         | Searching your knowledge base  |
+| `/v3/retrieval/rag`         | 5            | 200           | Retrieval-Augmented Generation |
+| `/v3/documents/create`      | 10           | 200           | Document ingestion             |
+| `/v3/retrieval/agentic-rag` | 5            | 100           | Interactive agent calls        |
+| `/v3/retrieval/completions` | 0            | 0             | Disabled in this sample        |
+| `/v3/retrieval/embeddings`  | 0            | 0             | Disabled in this sample        |
+
+These **per-route** limits are enforced in addition to the **global** 60 req/min user limit.\
+*If a per-route limit is lower than the global limit, that routeâs usage will be throttled sooner.*
+
+***
+
+## Starter Tier Overrides
+
+When upgrading to the **Starter Tier**, these default limits increase:
+
+| Resource / Action | New Limit |
+| ----------------- | --------- |
+| **Documents**     | 1,000     |
+| **Chunks**        | 100,000   |
+| **Collections**   | 50        |
+
+All other limits (like file size and request rates) remain the same unless otherwise specified by your plan.
+
+***
+
+## Local Deployment
+
+If you deploy R2R on your own infrastructure, **the same default limits** apply out of the box. However, you can easily override them in your local `r2r.toml` or equivalent configuration. For example:
+
+```toml
+[app]
+default_max_documents_per_user = 200
+default_max_chunks_per_user = 50_000
+default_max_collections_per_user = 20
+default_max_upload_size = 10_000_000  # 10 MB
+```
+
+And for route-based limits:
+
+```toml
+[database.route_limits]
+"/v3/retrieval/search" = { route_per_min = 50, monthly_limit = 10_000 }
+```
+
+***
+
+## Additional Notes
+
+* **User-Level Overrides**: Admins can grant custom overrides to specific users. For example, a single userâs âmax\_documentsâ might be raised to 5,000.
+* **Monthly Limits**: Resets on the **1st** of each month.
+* **Request Logging**: R2R logs usage for each route to track compliance with monthly or per-minute limits.
+* **Nginx Rate Limit**: Cloud deployments also apply a **60 requests/minute limit per IP** at the ingress layer.
+
+***
+
+## Conclusion
+
+R2R Cloudâs default usage limits keep the platform performant and equitable. When you need more capacityâsuch as uploading larger documents or making more requestsâupgrading your tier or adjusting local `r2r.toml` (for self-hosted deployments) is straightforward.
+
+By keeping usage within your planâs limits and splitting large files where necessary, youâll ensure a smooth experience with R2Râs ingestion, retrieval, and advanced AI features.

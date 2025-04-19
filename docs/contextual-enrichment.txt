@@ -1,0 +1,68 @@
+# Contextual Enrichment
+
+> Enhancing chunk quality through contextual understanding
+
+<Warning>
+  Contextual enrichment is currently restricted to:
+
+  * Self-hosted instances
+  * Enterprise tier cloud accounts
+
+  Contact our sales team for Enterprise pricing and features.
+</Warning>
+
+When processing documents into chunks, individual segments can sometimes lack necessary context from surrounding content. Chunk enrichment addresses this by incorporating contextual information from neighboring chunks to create more meaningful and comprehensive text segments.
+
+## Overview
+
+Chunk enrichment is the process of enhancing individual document chunks by considering their surrounding context.
+
+### How Enrichment Works
+
+The enrichment process runs after initial document chunking and:
+
+* Retrieves a configurable number of preceding and succeeding chunks
+* Sends the chunks, along with document summary if available, to an LLM
+* Generates an enriched version that maintains the original meaning while incorporating relevant context
+* Creates new embeddings for the enriched chunks
+* Replaces the original chunks in the vector database
+
+### Example Enrichment
+
+Consider this example from a technical document about spacecraft:
+
+<Accordion icon="code" title="Chunk Enrichment Example">
+  | Stage            | Content                                                                                                                                                                                                                                      |
+  | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Original Chunk   | "The heat shield underwent significant stress during this phase, reaching temperatures of 1500Â°C."                                                                                                                                           |
+  | Preceding Chunk  | "As the spacecraft began its descent through the Martian atmosphere, the entry sequence was initiated."                                                                                                                                      |
+  | Succeeding Chunk | "These extreme temperatures were within expected parameters, thanks to the carbon-based ablative material."                                                                                                                                  |
+  | Enriched Result  | "During the spacecraft's descent through the Martian atmosphere, the heat shield underwent significant stress during the entry phase, reaching temperatures of 1500Â°C. These temperatures were successfully managed by the shield's design." |
+</Accordion>
+
+The enriched version incorporates crucial context about the Martian descent while maintaining the core information about temperature and stress levels. This improved chunk will likely perform better in searches related to Mars missions, atmospheric entry, or heat shield performance.
+
+### Configuration Settings
+
+Chunk enrichment can be enabled through a custom configuration file. To learn more about managing your R2R configuration settings, read our [self hosting documentation](/self-hosting/configuration/overview).
+
+```toml my_r2r.toml
+[ingestion]
+   [ingestion.chunk_enrichment_settings]
+    enable_chunk_enrichment = true
+    n_chunks = 2 # number of preceding/succeeding chunks to use
+```
+
+<Error>
+  Chunk enrichment can modify the original text content. While this generally improves search quality, it's crucial to note that this process mutates the underlying chunks.
+</Error>
+
+### Enrichment Process Details
+
+The enrichment process handles chunks in batches for efficiency:
+
+1. **Context Collection**: Gathers preceding and succeeding chunks based on `n_chunks` setting
+2. **LLM Enhancement**: Processes chunks through the configured LLM to incorporate context
+3. **Fallback Handling**: Maintains original chunk text if enrichment fails
+4. **Batch Processing**: Processes chunks in groups of 128 for optimal performance
+5. **Vector Updates**: Replaces original chunks with enriched versions in the vector database

@@ -1,0 +1,144 @@
+# Data Ingestion
+
+> Configuring ingestion
+
+## Introduction
+
+R2R's ingestion workflows transforms raw documents into structured, searchable content. It supports a wide range of file types and can run in different modes and configurations to suit your performance and quality requirements.
+
+Data ingestion seamlessly integrates with R2R's vector databases and knowledge graphs, enabling advanced retrieval, analysis, and entity/relationship extraction at scale.
+
+### Supported File Types
+
+R2R supports ingestion of the following document types:
+
+| Category          | File types                                |
+| ----------------- | ----------------------------------------- |
+| Image             | `.bmp`, `.heic`, `.jpeg`, `.png`, `.tiff` |
+| MP3               | `.mp3`                                    |
+| PDF               | `.pdf`                                    |
+| CSV               | `.csv`                                    |
+| E-mail            | `.eml`, `.msg`, `.p7s`                    |
+| EPUB              | `.epub`                                   |
+| Excel             | `.xls`, `.xlsx`                           |
+| HTML              | `.html`                                   |
+| Markdown          | `.md`                                     |
+| Org Mode          | `.org`                                    |
+| Open Office       | `.odt`                                    |
+| Plain text        | `.txt`                                    |
+| PowerPoint        | `.ppt`, `.pptx`                           |
+| reStructured Text | `.rst`                                    |
+| Rich Text         | `.rtf`                                    |
+| TSV               | `.tsv`                                    |
+| Word              | `.doc`, `.docx`                           |
+| XML               | `.xml`                                    |
+| Code              | `.py`, `.js`, `.ts`, `.css`               |
+
+### Deployment Options
+
+R2R ingestion works in two main deployment modes:
+
+* **Light**:\
+  Uses R2R's built-in parsing for synchronous ingestion. This mode is simple, fast, and supports all file types locally. It's ideal for lower-volume scenarios or quick testing.
+
+* **Full**:\
+  Employs workflow orchestration to run asynchronous ingestion tasks at higher throughput. It can leverage external providers like `unstructured_local` or `unstructured_api` for more advanced parsing capabilities and hybrid (text + image) analysis.
+
+### Ingestion Modes
+
+When creating or updating documents, you can select an ingestion mode based on your needs:
+
+* **`fast`**: Prioritizes speed by skipping certain enrichment steps like summarization.
+* **`hi-res`**: Aims for high-quality extraction, potentially leveraging visual language models for PDFs and images. Recommended for complex or multimodal documents.
+* **`custom`**: Offers full control via `ingestion_config`, allowing you to tailor parsing, chunking, and enrichment parameters.
+
+## Core Concepts
+
+### Document Processing
+
+Ingestion in R2R covers the entire lifecycle of a document's preparation for retrieval:
+
+1. **Parsing**: Converts source files into text.
+2. **Chunking**: Breaks text into semantic segments.
+3. **Embedding**: Transforms segments into vector representations for semantic search.
+4. **Storing**: Persists chunks and embeddings for retrieval.
+5. **Knowledge Graph Integration**: Optionally extracts entities and relationships for graph-based analysis.
+
+Each ingested document is associated with user permissions and metadata, enabling comprehensive access control and management.
+
+## Ingestion Architecture
+
+R2R's ingestion is modular and extensible:
+
+```mermaid
+graph TD
+    A[Input Documents] --> B[Parsing]
+    B --> C[Embedding]
+    B --> D[Graph Building]
+    C --> E[Vector Database]
+    D --> F[Graph Database]
+```
+
+This structure allows you to customize components (e.g., choose a different parser or embedding model) without disrupting the entire system.
+
+### Multimodal Support
+
+For documents that contain images, complex layouts, or mixed media (like PDFs), using `hi-res` mode can unlock visual language model (VLM) capabilities. On a **full** deployment, `hi-res` mode may incorporate `unstructured_local` or `unstructured_api` to handle these advanced parsing scenarios.
+
+## Configuration
+
+### Key Configuration Areas
+
+Ingestion behavior is primarily managed through your `r2r.toml` configuration file:
+
+```toml
+[ingestion]
+provider = "r2r" # or `unstructured_local` | `unstructured_api`
+chunking_strategy = "recursive"
+chunk_size = 1024
+chunk_overlap = 512
+```
+
+* **Provider**: Determines which parsing engine is used (`r2r` built-in or `unstructured_*` providers).
+* **Chunking Strategy & Parameters**: Control how text is segmented into chunks.
+* **Other Settings**: Adjust file parsing logic, excluded parsers, and integration with embeddings or knowledge graphs.
+
+### Configuration Impact
+
+Your ingestion settings influence:
+
+1. **[Postgres Configuration](/self-hosting/configuration/postgres)**:\
+   Ensures that vector and metadata storage are optimized for semantic retrieval.
+
+2. **[Embedding Configuration](/self-hosting/configuration/embedding)**:\
+   Defines the vector models and parameters used to embed document chunks and queries.
+
+3. **Ingestion Settings Themselves**:\
+   Affect parsing complexity, chunk sizes, and the extent of enrichment during ingestion.
+
+## Document Management
+
+### Document Ingestion
+
+R2R supports multiple ingestion methods:
+
+* **File Ingestion**: Provide a file path and optional metadata:
+  ```python
+  ingest_response = client.documents.create(
+      file_path="path/to/file.txt",
+      metadata={"key1": "value1"},
+      ingestion_mode="fast", # choose fast, hi-res, or custom
+      # ingestion_config = {...} # `custom` setting allows for full specification
+  )
+  ```
+
+* **Direct Chunk Ingestion**: Supply pre-processed text segments:
+  ```python
+  chunks = ["Pre-chunked content", "other pre-chunked content", ...]
+  ingest_response = client.documents.create(chunks=chunks)
+  ```
+
+## Next Steps
+
+* Review [Embedding Configuration](/self-hosting/configuration/embedding) to optimize semantic search.
+* Check out other configuration guides for integrating retrieval and knowledge graph capabilities.

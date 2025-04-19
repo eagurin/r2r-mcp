@@ -1,0 +1,102 @@
+# Deduplication
+
+> Building and managing knowledge graphs through collections
+
+In many cases, the chunks that go into a document contain duplicate elements. This can create significant noise within a graph, and produce less-than-optimal search results. One way to reconcile this is through entity deduplication, which condenses duplicate elements into a single, high quality element.
+
+## Overview
+
+Entity deduplication is the process of identifying and merging duplicate entities within a knowledge graph. R2R currently supports document-level deduplication, with graph-level deduplication planned for future releases.
+
+### Document-Level Deduplication
+
+Document-level deduplication focuses on consolidating duplicate entities within a single document. This process:
+
+1. Identifies duplicate entities using configurable matching techniques
+2. Merges matched entities into a single high-quality entity
+3. Regenerates entity descriptions and embeddings using LLM
+4. Updates related relationships to point to the merged entity
+
+Following the process of creating a graph outlined in our [graph cookbook](/cookbooks/graphs), we can ingest a document. This process produces a number of entities and relationships, however, we see many duplicates!
+
+When extracting elements from *The Gift of the Magi* by O. Henry, we find that there 129 total entities, however only 20 of the entities are unique.
+
+<Accordion icon="gear" title="Extracted Entities Before Deduplication">
+  | Entity Name                | Count |
+  | -------------------------- | ----- |
+  | Magi                       | 15    |
+  | Della                      | 15    |
+  | Jim                        | 15    |
+  | Platinum Fob Chain         | 15    |
+  | Combs                      | 15    |
+  | O. Henry                   | 11    |
+  | The Gift of the Magi       | 10    |
+  | Christmas                  | 8     |
+  | Watch                      | 8     |
+  | Christmas Eve              | 7     |
+  | Christ Child               | 1     |
+  | Gold Watch                 | 1     |
+  | Mr. James Dillingham Young | 1     |
+  | Shabby Little Couch        | 1     |
+  | New York City              | 1     |
+  | Flat                       | 1     |
+  | Furnished Flat             | 1     |
+  | Dillingham Young           | 1     |
+  | Hair                       | 1     |
+  | 1.87 Dollars               | 1     |
+</Accordion>
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from r2r import R2RClient
+
+    # Set up the client
+    client = R2RClient("http://localhost:7272")
+
+    client.documents.deduplicate("20e29a97-c53c-506d-b89c-1f5346befc58")
+    ```
+  </Tab>
+</Tabs>
+
+After running the deduplication process, we are left with 20 entities. Those that were duplicates have been merged, and their description has been updated to ensure that no description context is lost through the merging process.
+
+### Deduplication Techniques
+
+R2R supports (or plans to support) several deduplication techniques, each with its own advantages:
+
+| Technique                  | Description                                                                         | Status    | Best For                                       |
+| -------------------------- | ----------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
+| Exact Name Matching        | Identifies duplicates based on exact string matches of entity names                 | Available | Clear duplicates with identical names          |
+| N-Character Block Matching | Matches entities based on character block similarity, allowing for minor variations | Planned   | Names with slight variations or typos          |
+| Semantic Similarity        | Uses embedding similarity to identify conceptually similar entities                 | Planned   | Entities with different names but same meaning |
+| Fuzzy Name Matching        | Employs Levenshtein distance to catch minor spelling variations                     | Planned   | Handling typos and minor name variations       |
+
+### Merging Strategy
+
+When duplicates are identified, R2R employs a sophisticated merging strategy:
+
+1. **Name Retention**: Keeps the most common form of the entity name
+2. **Description Consolidation**: Combines descriptions from all duplicates and uses LLM to generate a comprehensive, non-redundant description
+3. **Category Resolution**: Preserves the most specific category if categories differ
+4. **Metadata Merging**: Combines metadata from all duplicates, resolving conflicts through configurable rules
+5. **Relationship Redirection**: Updates all relationships to point to the merged entity
+
+## Future Developments
+
+### Runtime Configurable Techniques
+
+Runtime configurable deduplication techniques will allow for more advanced strategies. This includes n-character block matching, semantic similarity matching, and fuzzy name matching.
+
+### Graph-Level Deduplication
+
+A major feature planned for R2R's deduplication capabilities is graph-level deduplication. This will:
+
+* Identify and merge duplicates across multiple documents within a graph
+* Maintain provenance information for merged entities
+* Provide configurable merging rules at the graph level
+* Support cross-document relationship consolidation
+
+<Warning>
+  Entity deduplication is a critical step in maintaining graph quality. While automatic deduplication is powerful, it's recommended to review results, especially in domains where entity disambiguation is crucial.
+</Warning>
